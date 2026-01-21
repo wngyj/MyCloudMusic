@@ -5,50 +5,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. 拉取代码 (使用最新 v4 版)
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # 2. 核心修正：环境配置为 Java 21
-      # 这是解决 "invalid source release: 21" 错误的唯一正解
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin' # 使用最标准的 Eclipse Temurin 发行版
-          java-version: '21'      # 对应报错要求的 21 版本
+          distribution: 'temurin'
+          java-version: '21'
 
-      # 3. 配置 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 4. 安装依赖
-      # 显式生成 package.json 以防缺失，确保 Capacitor 能运行
       - name: Install Dependencies
         run: |
           if [ ! -f "package.json" ]; then
-            echo '{"name": "my-music-app","version": "1.0.0","dependencies":{}}' > package.json
+            echo '{"name": "my-music-app","version": "1.0.0"}' > package.json
           fi
           npm install -g @capacitor/cli
           npm install @capacitor/core @capacitor/android
 
-      # 5. 初始化安卓项目
-      # 使用 --web-dir www 确保指向你的网页目录
       - name: Initialize Capacitor
         run: |
           npx cap init MyMusic com.example.mymusic --web-dir www
           npx cap add android
 
-      # 6. 打包 APK
-      # 移除所有 sed 修改命令，让它使用原生的 Java 21 环境编译
+      - name: Allow HTTP Traffic
+        run: |
+          # 修复 API 连接失败的关键：开启明文传输支持
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 7. 上传产物 (使用最新 v4 版)
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
