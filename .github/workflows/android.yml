@@ -12,7 +12,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21' # 保持 Java 21
+          java-version: '21'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,7 +25,7 @@ jobs:
           if [ ! -f "package.json" ]; then
             echo '{"name": "my-music-app","version": "1.0.0"}' > package.json
           fi
-          # 锁死 v5 版本并强制忽略冲突
+          # 锁死 v5 版本插件
           npm install @capacitor/core@5 @capacitor/android@5 @capacitor/clipboard@5 --legacy-peer-deps
           npm install -g @capacitor/cli@5
 
@@ -36,15 +36,15 @@ jobs:
 
       - name: Upgrade Gradle for Java 21
         run: |
-          # 关键手术：将 Gradle 从 8.0.2 升级到 8.7，使其支持 Java 21
+          # 确保 Gradle 支持 Java 21
           sed -i 's/gradle-8.0.2-all.zip/gradle-8.7-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Inject Android Permissions
         run: |
-          # 允许 HTTP 明文传输
+          # 1. 允许 HTTP 明文传输
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
-          # 注入权限查询以找到 Termux
-          sed -i '/<\/manifest>/i <queries><package name="com.termux" /><\/queries>' android/app/src/main/AndroidManifest.xml
+          # 2. 注入权限查询 (修正语法：使用 android:name)
+          sed -i '/<\/manifest>/i <queries><package android:name="com.termux" /><\/queries>' android/app/src/main/AndroidManifest.xml
 
       - name: Build APK
         run: |
