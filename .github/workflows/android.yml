@@ -11,8 +11,8 @@ jobs:
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'microsoft' # 使用微软分发的 JDK，兼容性更好
-          java-version: '17' # 强制指定为安卓目前最稳的 Java 17
+          distribution: 'temurin'
+          java-version: '17' # 使用最稳定的 JDK 17
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,7 +22,6 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install -g @capacitor/cli
-          # 强制安装核心库
           npm install @capacitor/core @capacitor/android
 
       - name: Initialize Capacitor
@@ -33,10 +32,12 @@ jobs:
           npx cap init MyMusic com.example.mymusic --web-dir www
           npx cap add android
 
-      - name: Fix Java Version in Android Project
+      - name: Forced Version Downgrade
         run: |
-          # 强制修改项目配置，使其兼容 Java 17，避免 "invalid source release: 21" 错误
-          sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' android/app/build.gradle || true
+          # 这一步是核心：强制将安卓项目中的 Java 21 降级为 17
+          find android -name "build.gradle" -exec sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' {} +
+          find android -name "build.gradle" -exec sed -i 's/sourceCompatibility = 21/sourceCompatibility = 17/g' {} +
+          find android -name "build.gradle" -exec sed -i 's/targetCompatibility = 21/targetCompatibility = 17/g' {} +
 
       - name: Build APK
         run: |
