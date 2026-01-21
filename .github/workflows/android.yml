@@ -12,20 +12,23 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21' # 匹配 Capacitor 5+ 要求的版本
+          java-version: '21' # 保持 21 以适配最新安卓编译要求
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - name: Prepare Environment
         run: |
+          # 确保 www 目录存在，防止初始化失败
+          mkdir -p www
           if [ ! -f "package.json" ]; then
             echo '{"name": "my-music-app","version": "1.0.0"}' > package.json
           fi
-          npm install -g @capacitor/cli
-          npm install @capacitor/core @capacitor/android @capacitor/clipboard
+          # 核心修复：锁死 v5 版本并强制忽略冲突
+          npm install @capacitor/core@5 @capacitor/android@5 @capacitor/clipboard@5 --legacy-peer-deps
+          npm install -g @capacitor/cli@5
 
       - name: Initialize Capacitor
         run: |
@@ -34,9 +37,9 @@ jobs:
 
       - name: Inject Android Permissions
         run: |
-          # 1. 允许 HTTP 明文传输
+          # 1. 开启 HTTP 明文传输（允许连接 127.0.0.1）
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
-          # 2. 允许查询 Termux 应用是否存在
+          # 2. 注入权限查询，确保 App 能找到并打开 Termux
           sed -i '/<\/manifest>/i <queries><package name="com.termux" /><\/queries>' android/app/src/main/AndroidManifest.xml
 
       - name: Build APK
