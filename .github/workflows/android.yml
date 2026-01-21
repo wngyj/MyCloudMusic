@@ -12,7 +12,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '21' # 匹配 Capacitor 5+ 要求的版本
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,17 +25,19 @@ jobs:
             echo '{"name": "my-music-app","version": "1.0.0"}' > package.json
           fi
           npm install -g @capacitor/cli
-          npm install @capacitor/core @capacitor/android
+          npm install @capacitor/core @capacitor/android @capacitor/clipboard
 
       - name: Initialize Capacitor
         run: |
           npx cap init MyMusic com.example.mymusic --web-dir www
           npx cap add android
 
-      - name: Allow HTTP Traffic
+      - name: Inject Android Permissions
         run: |
-          # 修复 API 连接失败的关键：开启明文传输支持
+          # 1. 允许 HTTP 明文传输
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+          # 2. 允许查询 Termux 应用是否存在
+          sed -i '/<\/manifest>/i <queries><package name="com.termux" /><\/queries>' android/app/src/main/AndroidManifest.xml
 
       - name: Build APK
         run: |
