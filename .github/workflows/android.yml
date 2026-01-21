@@ -1,0 +1,37 @@
+name: Build Android APK
+on: [push] # 只要你修改代码，GitHub 就会自动开始打包
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: |
+          npm install -g @capacitor/cli
+          npm install @capacitor/core @capacitor/android
+          mkdir www # 确保有网页目录
+
+      - name: Initialize Capacitor
+        run: |
+          npx cap init MyMusic com.example.mymusic --web-dir www
+          npx cap add android
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: my-music-app
+          path: android/app/build/outputs/apk/debug/app-debug.apk
