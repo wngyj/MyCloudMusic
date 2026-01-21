@@ -12,7 +12,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17' # 降级到最稳定的 17，避开 Java 21 的镜像转换 Bug
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,7 +25,7 @@ jobs:
           if [ ! -f "package.json" ]; then
             echo '{"name": "my-music-app","version": "1.0.0"}' > package.json
           fi
-          # 锁死 v5 版本插件
+          # 锁死 v5 版本插件，确保兼容性
           npm install @capacitor/core@5 @capacitor/android@5 @capacitor/clipboard@5 --legacy-peer-deps
           npm install -g @capacitor/cli@5
 
@@ -34,16 +34,20 @@ jobs:
           npx cap init MyMusic com.example.mymusic --web-dir www
           npx cap add android
 
-      - name: Upgrade Gradle for Java 21
+      - name: Upgrade Gradle and Force Java 17
         run: |
-          # 确保 Gradle 支持 Java 21
+          # 1. 升级 Gradle 到 8.7（支持更好的兼容性）
           sed -i 's/gradle-8.0.2-all.zip/gradle-8.7-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          # 2. 强力手术：如果项目里写了要 Java 21，强行改成 17，防止版本不匹配报错
+          find android -name "build.gradle" -exec sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' {} +
+          find android -name "build.gradle" -exec sed -i 's/sourceCompatibility = 21/sourceCompatibility = 17/g' {} +
+          find android -name "build.gradle" -exec sed -i 's/targetCompatibility = 21/targetCompatibility = 17/g' {} +
 
       - name: Inject Android Permissions
         run: |
-          # 1. 允许 HTTP 明文传输
+          # 允许 HTTP 明文传输
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
-          # 2. 注入权限查询 (修正语法：使用 android:name)
+          # 注入权限查询 (已修正 android:name 语法)
           sed -i '/<\/manifest>/i <queries><package android:name="com.termux" /><\/queries>' android/app/src/main/AndroidManifest.xml
 
       - name: Build APK
