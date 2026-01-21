@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>网易云音乐极简版</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background: #f8f9fa; margin: 0; padding: 15px; }
+        .search-box { position: sticky; top: 0; background: #f8f9fa; padding: 10px 0; display: flex; gap: 5px; z-index: 100; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        button.search-btn { padding: 10px 20px; background: #ff3a3a; color: white; border: none; border-radius: 8px; font-weight: bold; }
+        
+        .song-item { background: white; margin-top: 10px; padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .song-info { flex: 1; margin-right: 10px; overflow: hidden; }
+        .song-name { font-weight: bold; color: #333; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .song-artist { font-size: 0.85em; color: #666; margin-top: 4px; }
+        
+        .btn-group { display: flex; gap: 5px; }
+        .play-btn { background: #4caf50; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 0.8em; }
+        .dl-btn { background: #2196f3; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 0.8em; }
+        
+        #player-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; border-top: 1px solid #eee; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+        audio { width: 100%; height: 40px; }
+    </style>
+</head>
+<body>
+
+    <div class="search-box">
+        <input type="text" id="keyword" placeholder="输入歌名或歌手" onkeypress="if(event.keyCode==13) search()">
+        <button class="search-btn" onclick="search()">搜索</button>
+    </div>
+
+    <div id="result-list" style="padding-bottom: 120px;">
+        <p style="text-align:center; color:#999; margin-top:30px;">在上方输入歌曲开始搜索</p>
+    </div>
+
+    <div id="player-container">
+        <div id="now-playing" style="font-size: 0.85em; margin-bottom: 8px; color: #333; text-align: center; font-weight: bold;">未在播放</div>
+        <audio id="mainPlayer" controls></audio>
+    </div>
+
+    <script>
+        // 搜索功能
+        async function search() {
+            const kw = document.getElementById('keyword').value;
+            if(!kw) return;
+            const listDiv = document.getElementById('result-list');
+            listDiv.innerHTML = '<p style="text-align:center">🔍 搜索中...</p>';
+
+            try {
+                const res = await fetch(`/search?keywords=${encodeURIComponent(kw)}`);
+                const data = await res.json();
+                
+                // 自动识别数据结构
+                const songs = data.result?.songs || data.data?.songs || [];
+                
+                if (songs.length === 0) {
+                    listDiv.innerHTML = '<p style="text-align:center">❌ 未找到结果</p>';
+                    return;
+                }
+                
+                listDiv.innerHTML = ''; 
+                songs.forEach(song => {
+                    // 处理歌手名字（适配 ar 或 artists 字段）
+                    const artistsArr = song.ar || song.artists || [{name: '未知'}];
+                    const artists = artistsArr.map(a => a.name).join(' / ');
+                    
+                    // 安全转义歌名中的引号
+                    const safeName = song.name.replace(/'/g, "\\'");
+
+                    const item = document.createElement('div');
+                    item.className = 'song-item';
+                    item.innerHTML = `
+                        <div class="song-info">
+                            <span class="song-name">${song.name}</span>
+                            <span class="song-artist">${artists}</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="getAndAction(${song.id}, '${safeName}', 'play')">播放</button>
+                            <button class="dl-btn" onclick="getAndAction(${song.id}, '${safeName}', 'download')">下载</button>
+                        </div>
+                    `;
+                    listDiv.appendChild(item);
+                });
+            } catch (e) {
+                listDiv.innerHTML = '<p style="text-align:center; color:red;">连接失败，请检查 Termux 服务</p>';
+            }
+        }
+
+        // 统一获取 URL 并执行动作
+        async function getAndAction(id, name, type) {
+            try {
+                const res = await fetch(`/song/url/v1?id=${id}&level=standard`);
+                const data = await res.json();
+                const url = data.data?.[0]?.url;
+
+                if(!url) {
+                    alert('抱歉，此歌曲可能受版权保护，无法获取地址');
+                    return;
+                }
+
+                if(type === 'play') {
+                    // 执行播放
+                    const player = document.getElementById('mainPlayer');
+                    document.getElementById('now-playing').innerText = '正在播放: ' + name;
+                    player.src = url;
+                    player.play();
+                } else {
+                    // 执行下载
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = name + ".mp3";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    alert('已尝试调用系统下载器');
+                }
+            } catch (e) {
+                alert('操作失败，请重试');
+            }
+        }
+    </script>
+</body>
+</html>
