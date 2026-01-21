@@ -9,10 +9,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v4 # 核心修复：显式指定 Java 环境
+        uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17' # 使用安卓编译最稳定的 Java 17
+          distribution: 'microsoft' # 使用微软分发的 JDK，兼容性更好
+          java-version: '17' # 强制指定为安卓目前最稳的 Java 17
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,6 +22,7 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install -g @capacitor/cli
+          # 强制安装核心库
           npm install @capacitor/core @capacitor/android
 
       - name: Initialize Capacitor
@@ -32,11 +33,14 @@ jobs:
           npx cap init MyMusic com.example.mymusic --web-dir www
           npx cap add android
 
+      - name: Fix Java Version in Android Project
+        run: |
+          # 强制修改项目配置，使其兼容 Java 17，避免 "invalid source release: 21" 错误
+          sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' android/app/build.gradle || true
+
       - name: Build APK
         run: |
           cd android
-          # 自动接受安卓 SDK 协议
-          yes | sdkmanager --licenses || true
           chmod +x gradlew
           ./gradlew assembleDebug
 
